@@ -12,6 +12,7 @@ import fileUpload from 'express-fileupload';
 import corsConfig from './utils/cors'
 import userRouter from './routes/user.routes'
 import teacherRouter from './routes/teacher.routes'
+import studentRouter from './routes/student.routes'
 
 const app = express()
 
@@ -38,3 +39,4 @@ app.listen(
 //EndPoints
 app.use('/api/v1/user', userRouter);
 app.use('/api/v1/teacher', teacherRouter);
+app.use('/api/v1/student', studentRouter);
