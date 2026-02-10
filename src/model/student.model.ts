@@ -1,130 +1,204 @@
-import { model, models, Document, Schema, Types } from 'mongoose';
+import { Schema, model, Document, Types } from "mongoose";
+
+//    Interfaces
 
 export interface IStudent extends Document {
-    user: Types.ObjectId;
-    admissionNumber: string;
-    rollNumber?: string;
+  studentId: string;
+
+  basicInfo: {
+    firstName: string;
+    lastName: string;
+    gender: "MALE" | "FEMALE" | "OTHER";
+    dob: Date;
+    bloodGroup?: string;
+    aadhaarNumber?: string;
+    profilePhoto?: string;
+    religion?: string;
+    nationality: string;
+  };
+
+  contactInfo: {
+    studentMobile: string;
+    studentEmail: string;
+
+    address: {
+      current: string;
+      permanent: string;
+      city: string;
+      state: string;
+      pincode: string;
+    };
+
+    guardian: {
+      fatherName?: string;
+      motherName?: string;
+      guardianName: string;
+      guardianMobile: string;
+      guardianEmail?: string;
+      relation: string;
+    };
+  };
+
+  academicInfo: {
+    admissionDate: Date;
     academicYear: string;
     class: string;
-    section?: string;
-    classTeacherId?: Types.ObjectId;
-    photo: string;
-    dob: Date;
-    gender: "MALE" | "FEMALE" | "OTHER";
-    bloodGroup?: string;
-    nationality?: string;
-    religion?: string;
-    category?: "GEN" | "OBC" | "SC" | "ST";
-    fatherName: string;
-    motherName: string;
-    guardianMobile: string;
-    emergencyContact?: string;
-    address: {
-        street: string;
-        city: string;
-        state: string;
-        pincode: string;
-    };
+    rollNumber: string;
+    medium: "ENGLISH" | "HINDI";
+    stream?: "SCIENCE" | "COMMERCE" | "ARTS";
     previousSchool?: string;
-    documents?: {
-        birthCertificate?: string;
-        transferCertificate?: string;
-        marksheet?: string;
-        fitnessCertificate?: string;
-    };
-    medicalInfo?: {
-        medicalConditions?: string;
-        doctorName?: string;
-    };
-    transport?: {
-        transportMode: "BUS" | "WALK" | "PRIVATE";
-        busRoute?: string;
-        pickupPoint?: string;
-    };
-    admissionDate: Date;
-    status: "ACTIVE" | "INACTIVE" | "PROMOTED" | "DROPOUT";
-    parentId?: Types.ObjectId;
-    createdBy?: Types.ObjectId;
-    remarks?: string;
-    profileCompleted?: boolean;
+    previousPercentage?: number;
+  };
+
+  healthInfo?: {
+    bloodGroup?: string;
+    medicalConditions?: string;
+    emergencyContact?: string;
+    doctorName?: string;
+  };
+
+  documents?: {
+    birthCertificate?: string;
+    aadhaarCard?: string;
+    transferCertificate?: string;
+    marksheet?: string;
+    photo?: string;
+  };
+
+  user: Types.ObjectId;
+  accountStatus: "ACTIVE" | "INACTIVE";
+  lastLogin?: Date;
 }
 
+//   Schema
+
 const studentSchema = new Schema<IStudent>(
-    {
-        user: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            required: [true, "User reference is required"],
-        },
-        admissionNumber: {
-            type: String,
-            required: [true, "Admission number is required"],
-            unique: true,
-            trim: true,
-            uppercase: true
-        },
-        rollNumber: { type: String, trim: true },
-        academicYear: { 
-            type: String, 
-            required: [true, "Academic year is required"],
-            match: [/^\d{4}-\d{2}$/, "Please use format YYYY-YY (e.g. 2025-26)"]
-        },
-        class: {
-            type: String,
-            required: [true, "Class is required"],
-            enum: ["Nursery", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-        },
-        photo: {
-            type: String,
-            required: true
-        },
-        section: { type: String, uppercase: true, default: "A" },
-        classTeacherId: { type: Schema.Types.ObjectId, ref: 'User' },
-        dob: { type: Date, required: true },
-        gender: { type: String, enum: ["MALE", "FEMALE", "OTHER"], required: true },
-        bloodGroup: { 
-            type: String, 
-            enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] 
-        },
-        category: { type: String, enum: ["GEN", "OBC", "SC", "ST"], default: "GEN" },
-        fatherName: { type: String, required: true, trim: true },
-        motherName: { type: String, required: true, trim: true },
-        guardianMobile: {
-            type: String,
-            required: true,
-            match: [/^[0-9]{10}$/, "Must be a 10-digit number"]
-        },
-        address: {
-            street: { type: String, required: true },
-            city: { type: String, required: true },
-            state: { type: String, required: true },
-            pincode: { type: String, required: true }
-        },
-        transport: {
-            transportMode: { type: String, enum: ["BUS", "WALK", "PRIVATE"], default: "WALK" },
-            busRoute: String,
-            pickupPoint: String
-        },
-        documents: {
-            birthCertificate: String,
-            transferCertificate: String,
-            marksheet: String,
-            fitnessCertificateUrl: String,
-        },
-        status: {
-            type: String,
-            enum: ["ACTIVE", "INACTIVE", "PROMOTED", "DROPOUT"],
-            default: "ACTIVE"
-        },
-        profileCompleted: { type: Boolean, default: false }
+  {
+    studentId: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
     },
-    { timestamps: true }
+
+    /* ---------- Basic Info ---------- */
+    basicInfo: {
+      firstName: { type: String, required: true, trim: true },
+      lastName: { type: String, required: true, trim: true },
+      gender: {
+        type: String,
+        enum: ["MALE", "FEMALE", "OTHER"],
+        required: true,
+      },
+      dob: { type: Date, required: true },
+      bloodGroup: { type: String },
+      aadhaarNumber: { type: String },
+      profilePhoto: { type: String },
+      religion: { type: String },
+      nationality: { type: String, required: true },
+    },
+
+    /* ---------- Contact Info ---------- */
+    contactInfo: {
+      studentMobile: {
+        type: String,
+        required: true,
+        match: /^[6-9]\d{9}$/,
+      },
+      studentEmail: {
+        type: String,
+        required: true,
+        lowercase: true,
+        match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      },
+
+      address: {
+        current: { type: String, required: true },
+        permanent: { type: String, required: true },
+        city: { type: String, required: true },
+        state: { type: String, required: true },
+        pincode: {
+          type: String,
+          required: true,
+          match: /^\d{6}$/,
+        },
+      },
+
+      guardian: {
+        fatherName: String,
+        motherName: String,
+        guardianName: { type: String, required: true },
+        guardianMobile: {
+          type: String,
+          required: true,
+          match: /^[6-9]\d{9}$/,
+        },
+        guardianEmail: {
+          type: String,
+          match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        },
+        relation: { type: String, required: true },
+      },
+    },
+
+    /* ---------- Academic Info ---------- */
+    academicInfo: {
+      admissionDate: { type: Date, required: true },
+      academicYear: { type: String, required: true },
+      class: { type: String, required: true },
+      rollNumber: { type: String, required: true },
+      medium: {
+        type: String,
+        enum: ["ENGLISH", "HINDI"],
+        required: true,
+      },
+      stream: {
+        type: String,
+        enum: ["SCIENCE", "COMMERCE", "ARTS"],
+      },
+      previousSchool: String,
+      previousPercentage: {
+        type: Number,
+        min: 0,
+        max: 100,
+      },
+    },
+
+    /* ---------- Health Info ---------- */
+    healthInfo: {
+      bloodGroup: String,
+      medicalConditions: String,
+      emergencyContact: String,
+      doctorName: String,
+    },
+
+    /* ---------- Documents ---------- */
+    documents: {
+      birthCertificate: String,
+      aadhaarCard: String,
+      transferCertificate: String,
+      marksheet: String,
+      photo: String,
+    },
+
+    /* ---------- Login / System ---------- */
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    accountStatus: {
+      type: String,
+      enum: ["ACTIVE", "INACTIVE"],
+      default: "ACTIVE",
+    },
+
+    lastLogin: Date,
+  },
+  { timestamps: true }
 );
 
-// Indexes for high-performance searching
-studentSchema.index({ admissionNumber: 1 });
-studentSchema.index({ class: 1, section: 1 });
-studentSchema.index({ academicYear: 1 });
+const StudentModel = model<IStudent>("Student", studentSchema);
 
-const StudentModel = models.Student || model<IStudent>("Student", studentSchema);
-export default StudentModel;
+export default StudentModel 

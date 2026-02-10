@@ -47,6 +47,7 @@ export interface ITeacher extends Document {
     aadhaarCard?: string;
     panCard?: string;
     certificates?: string[];
+    photo: string[];
   };
 
   loginEnabled?: boolean;
@@ -124,7 +125,8 @@ const teacherSchema = new Schema<ITeacher>(
     documents: {
       aadhaarCard: String,
       panCard: String,
-      certificates: [{ type: String }], // Array of strings (URLs)
+      certificates: [{ type: String }], 
+      photo: String
     },
 
     loginEnabled: { type: Boolean, default: true },

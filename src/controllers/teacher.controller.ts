@@ -22,7 +22,8 @@ export const createTeacher = async (req: Request, res: Response) => {
     let data: any;
     try {
       data = JSON.parse(req.body.data);
-    } catch {
+    } 
+    catch {
       throw tryError("Invalid JSON format in data field", 400);
     }
 
@@ -118,22 +119,22 @@ export const createTeacher = async (req: Request, res: Response) => {
        9. FILE VALIDATION
     ========================== */
     if (!req.files) throw tryError("Documents are required", 400);
-    console.log("FILES 👉", req.files);
-
 
     const files = req.files as {
       certificates?: UploadedFile | UploadedFile[];
       aadhaarCard?: UploadedFile | UploadedFile[];
       panCard?: UploadedFile | UploadedFile[];
+      photo?: UploadedFile | UploadedFile[];
     };
 
-    if (!files.certificates || !files.aadhaarCard || !files.panCard) {
+    if (!files.certificates || !files.aadhaarCard || !files.panCard || !files.photo) {
       throw tryError("All documents are required", 400);
     }
 
     const certificatesFile = getSingleFile(files.certificates);
     const aadhaarFile = getSingleFile(files.aadhaarCard);
     const panFile = getSingleFile(files.panCard);
+    const photoFile = getSingleFile(files.photo);
 
     /* =========================
        10. UPLOAD FILES
@@ -141,6 +142,7 @@ export const createTeacher = async (req: Request, res: Response) => {
     const certificatesUrl = await uploadSingleFile(certificatesFile);
     const aadhaarCardUrl = await uploadSingleFile(aadhaarFile);
     const panCardUrl = await uploadSingleFile(panFile);
+    const photoUrl = await uploadSingleFile(photoFile);
 
     /* =========================
        11. CREATE TEACHER
@@ -179,6 +181,7 @@ export const createTeacher = async (req: Request, res: Response) => {
         certificates: certificatesUrl,
         aadhaarCard: aadhaarCardUrl,
         panCard: panCardUrl,
+        photo: photoUrl
       },
     });
 
@@ -191,3 +194,50 @@ export const createTeacher = async (req: Request, res: Response) => {
     return catchError(error, res);
   }
 };
+
+export const fetchTeacher = async (req: Request, res: Response) => {
+  try {
+    const teacher = await TeacherModel.find()
+      .select("teacherId subjectsCanTeach experienceYears highestQualification status department")
+      .populate("user", "name email mobile");
+
+    if (teacher.length === 0) {
+      throw tryError("Teacher data not found.", 404);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Teacher list fetched successfully.",
+      data: teacher,
+    });
+  } catch (error) {
+    return catchError(error, res);
+  }
+};
+
+
+export const getTeacherById = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { id } = req.params; 
+  
+
+    if (!id) {
+      throw tryError("Teacher ID is required", 400);
+    }
+
+    const teacher = await TeacherModel.findOne({user: id})
+    .populate("user", "name email mobile");
+
+    if (!teacher) {
+      throw tryError("Teacher not found", 404);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: teacher,
+    });
+  } catch (error) {
+    return catchError(error, res);
+  }
+};
+

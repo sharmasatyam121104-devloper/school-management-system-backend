@@ -14,10 +14,6 @@ import userRouter from './routes/user.routes'
 import teacherRouter from './routes/teacher.routes'
 
 const app = express()
-app.listen(
-    process.env.PORT || 8080, 
-    ()=>console.log(chalk.yellowBright((`Server is running on: http://localhost:${process.env.PORT}`)))
-)
 
 app.use(cors(corsConfig))
 app.use(cookieParser())
@@ -30,6 +26,13 @@ app.use(
     createParentPath: true,
   })
 );
+
+
+app.listen(
+    process.env.PORT || 8080, 
+    ()=>console.log(chalk.yellowBright((`Server is running on: http://localhost:${process.env.PORT}`)))
+)
+
 
 
 //EndPoints
