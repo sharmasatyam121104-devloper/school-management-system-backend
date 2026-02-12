@@ -22,9 +22,7 @@ app.use(express.json())
 app.use(express.urlencoded({extended: false}))
 app.use(
   fileUpload({
-    useTempFiles: true,
-    tempFileDir: "./tmp", 
-    createParentPath: true,
+    useTempFiles: false,
   })
 );
 

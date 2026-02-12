@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import { catchError, tryError } from "../utils/errorHandler";
 import bcrypt from "bcrypt";
 import UserModel from "../model/user.model";
-import StudentModel, { IStudent } from "../model/student.model";
+import StudentModel from "../model/student.model";
 import { CounterModel } from "../model/counter.model";
+import { uploadImage } from "../utils/cloudinary";
+import { UploadedFile } from "express-fileupload";
 
 
 export const createStudent = async(req: Request, res: Response)=>{
@@ -233,6 +235,111 @@ export const createStudent = async(req: Request, res: Response)=>{
 
         const student = await StudentModel.create(studentPayload)
         return res.json({message: "student creted successfully!", data: student})
+
+    } 
+    catch (error) {
+        return catchError(error, res)    
+    }
+}
+
+export const uploadStudentDocumnets = async(req: Request, res: Response)=>{
+    try {
+        const { id } = req.params; 
+        if(!id) {
+            throw tryError("Id is required.",404)
+        }
+
+        const user = await UserModel.findById(id)
+
+        if(!user) {
+            throw tryError("User not regiterd yet.",400)
+        }
+
+        if(user.role !== "STUDENT") {
+            throw tryError("You are not eligible for file upload...Because u already register for some diffrent role.",400)
+        }
+
+        const student = await StudentModel.findOne({user: user._id}) 
+
+        if (student && student.accountStatus === "ACTIVE") {
+            throw tryError(
+                "You have already uploaded student documents. To update, go to student update section.",
+                400
+            );
+        }
+
+        const file = req.files
+        if(!file) {
+            throw tryError("Data is required", 400);
+        }
+        const {birthCertificate, aadhaarCard, transferCertificate, marksheet, photo} = file
+        const validateRequiredFiles = ["birthCertificate", "aadhaarCard", "transferCertificate", "marksheet", "photo"]
+
+        validateRequiredFiles.forEach((filename)=>{
+            if(!file[filename]) {
+                throw tryError(`${filename} is missing in .`, 400);
+            }
+        })
+
+        const getSingleFile = (file: UploadedFile | UploadedFile[]) =>
+        Array.isArray(file) ? file[0] : file;
+
+        const birthCertificateUrl = await uploadImage(getSingleFile(birthCertificate), "student");
+        const aadhaarCardUrl = await uploadImage(getSingleFile(aadhaarCard), "student");
+        const transferCertificateUrl = await uploadImage(getSingleFile(transferCertificate), "student");
+        const marksheetUrl = await uploadImage(getSingleFile(marksheet), "student");
+        const photoUrl = await uploadImage(getSingleFile(photo), "student");
+
+        const payload = {
+            documents : {
+                birthCertificate: birthCertificateUrl,
+                aadhaarCard: aadhaarCardUrl,
+                transferCertificate: transferCertificateUrl,
+                marksheet: marksheetUrl,
+                photo: photoUrl,
+            },
+            accountStatus: "ACTIVE"
+        }
+
+        const registeredStudent = await StudentModel.findOneAndUpdate({user: user._id},payload)
+
+        return res.json({message: "Student documents uploaded.!"})
+
+    } 
+    catch (error) {
+        return catchError(error, res)    
+    }
+}
+
+export const fetchAllStudent = async(req: Request, res: Response) => {
+    try {
+        const students = await StudentModel.find()
+        .select("studentId academicInfo.className basicInfo.gender basicInfo.dob contactInfo.guardian.guardianName contactInfo.guardian.guardianMobile accountStatus")
+        .populate("user", "name mobile createdAt")
+
+        return res.json({message: "Data fetched successfully !", data: students})
+
+    } 
+    catch (error) {
+        catchError(error,res)    
+    }
+}
+
+export const fetchAllDataOfStudent = async(req: Request, res: Response) => {
+    try {
+        const { id } = req.params; 
+        if(!id) {
+            throw tryError("Id is required.",404)
+        }
+
+        const user = await StudentModel.findOne({user:id})
+        .populate("user", "name mobile createdAt eamil")
+
+        if(!user) {
+            throw tryError("Student not found",404)
+        }
+
+        return res.json({message: "Student data fetched successfully.", data: user})
 
     } 
     catch (error) {
