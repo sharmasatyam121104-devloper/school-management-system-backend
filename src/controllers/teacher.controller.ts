@@ -6,202 +6,254 @@ import { CounterModel } from "../model/counter.model";
 import { uploadImage, uploadSingleFile } from "../utils/cloudinary";
 import TeacherModel from "../model/teacher.model";
 import UserModel from "../model/user.model";
+import { nanoid } from "nanoid";
 
-const getSingleFile = (file: UploadedFile | UploadedFile[]) =>
-  Array.isArray(file) ? file[0] : file;
 
-export const createTeacher = async (req: Request, res: Response) => {
-  let user: any = null;
-
+//Create techer 
+//step:1 save professional data
+export const saveProfessionalInfo = async (req: Request, res: Response) => {
   try {
-    /* =========================
-       1. PARSE FORM-DATA JSON
-    ========================== */
-    if (!req.body.data) throw tryError("Data is required", 400);
+    const {
+      email,
+      designation,
+      department,
+      joiningDate,
+      employmentType,
+      highestQualification,
+      specialization,
+      experienceYears,
+      subjectsCanTeach,
+    } = req.body;
 
-    let data: any;
-    try {
-      data = JSON.parse(req.body.data);
-    } 
-    catch {
-      throw tryError("Invalid JSON format in data field", 400);
+    /* =========================
+     EMAIL VALIDATION
+    ========================== */
+    if (!email) {
+      throw tryError("Email is required", 400);
+    }
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      throw tryError("User not found", 404);
     }
 
     /* =========================
-       2. USER VALIDATION
+       DESIGNATION VALIDATION
     ========================== */
-    const { name, email, mobile, password } = data.user || {};
+    const validDesignations = [
+      "PGT",
+      "TGT",
+      "PRT",
+      "HOD",
+      "PRINCIPAL",
+      "ADMIN_STAFF",
+    ];
 
-    if (!name) throw tryError("Name is required", 400);
-    if (!email) throw tryError("Email is required", 400);
-    if (!mobile) throw tryError("Mobile number is required", 400);
-    if (!password) throw tryError("Password is required", 400);
-
-    /* =========================
-       3. CHECK USER
-    ========================== */
-    user = await UserModel.findOne({ email });
-
-    if (user) {
-      if (user.role !== "TEACHER") {
-        throw tryError("User exists but is not a teacher", 400);
-      }
-
-      const teacherExists = await TeacherModel.findOne({ user: user._id });
-      if (teacherExists) {
-        throw tryError("Teacher already exists for this user", 409);
-      }
-    } else {
-      
-      /* =========================
-         4. CREATE USER
-      ========================== */
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      user = await UserModel.create({
-        name,
-        email,
-        mobile,
-        password: hashedPassword,
-        role: "TEACHER",
-      });
+    if (!designation || !validDesignations.includes(designation)) {
+      throw tryError("Valid designation is required", 400);
     }
 
     /* =========================
-       5. GENERATE TEACHER ID
+      JOINING DATE VALIDATION
     ========================== */
-    const counter = await CounterModel.findOneAndUpdate(
-      { key: "teacher" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+    if (!joiningDate) {
+      throw tryError("Joining date is required", 400);
+    }
+
+    const date = new Date(joiningDate);
+    if (isNaN(date.getTime())) {
+      throw tryError("Invalid joining date", 400);
+    }
+
+    /* =========================
+       EMPLOYMENT TYPE VALIDATION
+    ========================== */
+    const validEmploymentTypes = ["PERMANENT", "CONTRACT", "GUEST"];
+
+    if (
+      employmentType &&
+      !validEmploymentTypes.includes(employmentType)
+    ) {
+      throw tryError("Invalid employment type", 400);
+    }
+
+    /* =========================
+        REQUIRED TEXT FIELDS
+    ========================== */
+    if (!highestQualification) {
+      throw tryError("Highest qualification is required", 400);
+    }
+
+    if (!specialization) {
+      throw tryError("Specialization is required", 400);
+    }
+
+    /* =========================
+        EXPERIENCE VALIDATION
+    ========================== */
+    if (
+      experienceYears !== undefined &&
+      (typeof experienceYears !== "number" || experienceYears < 0)
+    ) {
+      throw tryError("Experience must be a valid number", 400);
+    }
+
+    /* =========================
+        SUBJECTS VALIDATION
+    ========================== */
+    if (
+      !Array.isArray(subjectsCanTeach) ||
+      subjectsCanTeach.length === 0
+    ) {
+      throw tryError("At least one subject is required", 400);
+    }
+
+    /* =========================
+        UPDATE TEACHER + STEP
+    ========================== */
+    const updatedTeacher = await TeacherModel.create(
+      {
+        account: {
+          user: user._id,
+          teacherId: `T-${nanoid(5)}`,
+          loginEnabled: true,
+        },
+
+        professional: {
+          designation,
+          department,
+          joiningDate: date,
+          employmentType,
+          highestQualification,
+          specialization,
+          experienceYears: experienceYears || 0,
+          subjectsCanTeach,
+        },
+        "registrationProgress.currentStep": "PROFESSIONAL",
+      },
     );
 
-    const teacherId = `T-${counter.seq}`;
-
-    /* =========================
-       6. ACADEMIC INFO
-    ========================== */
-    const {
-      designation,
-      department,
-      employmentType,
-      highestQualification,
-      specialization,
-      experienceYears,
-      subjectsCanTeach,
-    } = data.academicInfo || {};
-
-    if (!designation) throw tryError("Designation is required", 400);
-    if (!department) throw tryError("Department is required", 400);
-
-    /* =========================
-       7. BASIC INFO
-    ========================== */
-    const { gender, primaryContact, emergencyContact, dob } =
-      data.basicInfo || {};
-
-    if (!dob) throw tryError("Date of birth is required", 400);
-    
-
-    /* =========================
-       8. PERSONAL + SALARY
-    ========================== */
-    const { address, bloodGroup } = data.personalInfo || {};
-    const { salary, bankDetails } = data.salaryAndDocs || {};
-
-    if (!salary) throw tryError("Salary is required", 400);
-    if (!address) throw tryError("Address is required", 400);
-
-    const { city, state, pincode, street } = address;
-
-    if (!city || !state || !pincode || !street)
-      throw tryError("Complete address is required", 400);
-
-    /* =========================
-       9. FILE VALIDATION
-    ========================== */
-    if (!req.files) throw tryError("Documents are required", 400);
-
-    const files = req.files as {
-      certificates?: UploadedFile | UploadedFile[];
-      aadhaarCard?: UploadedFile | UploadedFile[];
-      panCard?: UploadedFile | UploadedFile[];
-      photo?: UploadedFile | UploadedFile[];
-    };
-
-    if (!files.certificates || !files.aadhaarCard || !files.panCard || !files.photo) {
-      throw tryError("All documents are required", 400);
-    }
-
-    const certificatesFile = getSingleFile(files.certificates);
-    const aadhaarFile = getSingleFile(files.aadhaarCard);
-    const panFile = getSingleFile(files.panCard);
-    const photoFile = getSingleFile(files.photo);
-
-    /* =========================
-       10. UPLOAD FILES
-    ========================== */
-    // const certificatesUrl = await uploadSingleFile(certificatesFile);
-    // const aadhaarCardUrl = await uploadSingleFile(aadhaarFile);
-    // const panCardUrl = await uploadSingleFile(panFile);
-    // const photoUrl = await uploadSingleFile(photoFile);
-
-    const certificatesUrl = await uploadImage(certificatesFile, "teacher");
-    const aadhaarCardUrl = await uploadImage(aadhaarFile, "teacher");
-    const panCardUrl = await uploadImage(panFile, "teacher");
-    const photoUrl = await uploadImage(photoFile, "teacher");
-
-    /* =========================
-       11. CREATE TEACHER
-    ========================== */
-    const teacher = await TeacherModel.create({
-      user: user._id,
-      teacherId,
-
-      designation,
-      department,
-      employmentType,
-      highestQualification,
-      specialization,
-      experienceYears,
-      subjectsCanTeach,
-
-      gender,
-      primaryContact,
-      emergencyContact,
-      dob: new Date(dob),
-      joiningDate: new Date(),
-
-      salary,
-      bloodGroup,
-
-      address: {
-        city,
-        state,
-        pincode,
-        street,
-      },
-
-      bankDetails,
-
-      documents: {
-        certificates: certificatesUrl,
-        aadhaarCard: aadhaarCardUrl,
-        panCard: panCardUrl,
-        photo: photoUrl
-      },
-    });
-
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: "Teacher created successfully",
-      data: teacher,
+      message: "Professional information saved successfully",
+      data: updatedTeacher,
     });
+
   } catch (error) {
-    console.log(error);
     return catchError(error, res);
   }
 };
+
+export const savePersonalInfo = async (req: Request, res: Response) => {
+  try {
+    const {
+      email,
+      gender,
+      dob,
+      primaryContact,
+      emergencyContact,
+      address,
+    } = req.body;
+
+    /* =========================
+        EMAIL VALIDATION
+    ========================== */
+    if (!email) {
+      throw tryError("Email is required", 400);
+    }
+
+    const user = await UserModel.findOne({ email });
+
+    if (!user) {
+      throw tryError("User not found", 404);
+    }
+
+    /* =========================
+        TEACHER FIND BY USER ID
+    ========================== */
+    const teacher = await TeacherModel.findOne({
+      "account.user": user._id,
+    });
+
+    if (!teacher) {
+      throw tryError("Teacher profile not found", 404);
+    }
+
+    /* =========================
+        VALIDATION
+    ========================== */
+
+    const validGenders = ["MALE", "FEMALE", "OTHER"];
+
+    if (!gender || !validGenders.includes(gender)) {
+      throw tryError("Valid gender is required", 400);
+    }
+
+    if (!dob) {
+      throw tryError("Date of birth is required", 400);
+    }
+
+    const date = new Date(dob);
+    if (isNaN(date.getTime())) {
+      throw tryError("Invalid date of birth", 400);
+    }
+
+    if (!primaryContact || !/^[0-9]{10}$/.test(primaryContact)) {
+      throw tryError("Primary contact must be 10 digits", 400);
+    }
+
+    if (!emergencyContact) {
+      throw tryError("Emergency contact is required", 400);
+    }
+
+    if (!address) {
+      throw tryError("Address is required", 400);
+    }
+
+    const { street, city, state, pincode } = address;
+
+    if (!street || !city || !state || !pincode) {
+      throw tryError("Complete address is required", 400);
+    }
+
+    /* =========================
+      UPDATE TEACHER
+    ========================== */
+
+    const updatedTeacher = await TeacherModel.findOneAndUpdate(
+      { "account.user": user._id },
+
+      {
+        personal: {
+          gender,
+          dob: date,
+          primaryContact,
+          emergencyContact,
+          address: {
+            street,
+            city,
+            state,
+            pincode,
+          },
+        },
+
+        "registrationProgress.currentStep": "PERSONAL",
+      },
+
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Personal information saved successfully",
+      data: updatedTeacher,
+    });
+
+  } catch (error) {
+    return catchError(error, res);
+  }
+};
+
 
 export const fetchTeacher = async (req: Request, res: Response) => {
   try {
@@ -249,3 +301,33 @@ export const getTeacherById = async (req: Request, res: Response): Promise<Respo
   }
 };
 
+export const checkStatusOfRegistration = async (req: Request, res: Response) => {
+  try {
+    const {email} = req.body
+
+    if(!email) {
+      throw tryError("Email not found", 404);
+    }
+
+    const user = await UserModel.findOne({email})
+
+    if(!user) {
+      return res.send({status: "Not registerd"})
+    }
+
+    const teacherStatus = await TeacherModel.findOne({"account.user": user._id})
+    
+    if(!teacherStatus) {
+      return res.send({status: "ACCOUNT"})
+    }
+
+    const status = teacherStatus?.registrationProgress?.currentStep
+
+    res.send({status})
+
+  } 
+  catch (error) {
+    console.log(error)
+    return catchError(error, res)
+  }
+}

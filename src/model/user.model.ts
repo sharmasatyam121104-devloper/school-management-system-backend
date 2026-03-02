@@ -1,6 +1,6 @@
 import {model, models, Document, Schema} from 'mongoose';
 
-export type UserRole = "OTHER" | "TEACHER" | "STUDENT" | "PARENT";
+export type UserRole = "OTHER" | "TEACHER" | "STUDENT" | "PARENT" | "USER";
 
 export interface IUser extends Document {
     name: string
@@ -47,10 +47,10 @@ const userSchema = new Schema<IUser>({
     role: {
         type: String,
         enum: {
-            values: ["OTHER", "TEACHER", "STUDENT", "PARENT"],
+            values: ["OTHER", "TEACHER", "STUDENT", "PARENT","USER"],
             message: "{VALUE} is not a valid role",
         },
-        default: "STUDENT",
+        default: "USER",
     },
     isActive: {
         type: Boolean,

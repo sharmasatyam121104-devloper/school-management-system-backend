@@ -84,7 +84,7 @@ export const signup = async (req: Request, res: Response) => {
             email,
             mobile,
             password: hashedPassword,
-            role: role || "STUDENT"
+            role: role || "USER"
         });
         console.log(newUser);
 
