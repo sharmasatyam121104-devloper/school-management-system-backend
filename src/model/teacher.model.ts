@@ -102,8 +102,6 @@ const teacherSchema = new Schema<ITeacher>(
     
     primaryContact: {
       type: String,
-      required: [true, "Primary contact is required"],
-      unique: true,
       match: [/^[0-9]{10}$/, "Mobile number must be 10 digits"],
     },
     emergencyContact: { type: String, required: true },

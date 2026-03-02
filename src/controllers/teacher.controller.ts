@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import { UploadedFile } from "express-fileupload";
 import { catchError, tryError } from "../utils/errorHandler";
 import { CounterModel } from "../model/counter.model";
-import { uploadSingleFile } from "../utils/cloudinary";
+import { uploadImage, uploadSingleFile } from "../utils/cloudinary";
 import TeacherModel from "../model/teacher.model";
 import UserModel from "../model/user.model";
 
@@ -52,6 +52,7 @@ export const createTeacher = async (req: Request, res: Response) => {
         throw tryError("Teacher already exists for this user", 409);
       }
     } else {
+      
       /* =========================
          4. CREATE USER
       ========================== */
@@ -100,6 +101,7 @@ export const createTeacher = async (req: Request, res: Response) => {
       data.basicInfo || {};
 
     if (!dob) throw tryError("Date of birth is required", 400);
+    
 
     /* =========================
        8. PERSONAL + SALARY
@@ -139,10 +141,15 @@ export const createTeacher = async (req: Request, res: Response) => {
     /* =========================
        10. UPLOAD FILES
     ========================== */
-    const certificatesUrl = await uploadSingleFile(certificatesFile);
-    const aadhaarCardUrl = await uploadSingleFile(aadhaarFile);
-    const panCardUrl = await uploadSingleFile(panFile);
-    const photoUrl = await uploadSingleFile(photoFile);
+    // const certificatesUrl = await uploadSingleFile(certificatesFile);
+    // const aadhaarCardUrl = await uploadSingleFile(aadhaarFile);
+    // const panCardUrl = await uploadSingleFile(panFile);
+    // const photoUrl = await uploadSingleFile(photoFile);
+
+    const certificatesUrl = await uploadImage(certificatesFile, "teacher");
+    const aadhaarCardUrl = await uploadImage(aadhaarFile, "teacher");
+    const panCardUrl = await uploadImage(panFile, "teacher");
+    const photoUrl = await uploadImage(photoFile, "teacher");
 
     /* =========================
        11. CREATE TEACHER
@@ -191,6 +198,7 @@ export const createTeacher = async (req: Request, res: Response) => {
       data: teacher,
     });
   } catch (error) {
+    console.log(error);
     return catchError(error, res);
   }
 };
