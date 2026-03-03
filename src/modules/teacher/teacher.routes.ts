@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { checkStatusOfRegistration, fetchTeacher, getTeacherById, saveFinanceInfo, savePersonalInfo, saveProfessionalInfo } from '../controllers/teacher.controller';
+import { checkStatusOfRegistration, fetchTeacher, getTeacherById, saveFinanceInfo, savePersonalInfo, saveProfessionalInfo } from './teacher.controller';
 
 const teacherRouter = Router();
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { createStudent, fetchAllDataOfStudent, fetchAllStudent, uploadStudentDocumnets } from "../controllers/student.controller";
+import { createStudent, fetchAllDataOfStudent, fetchAllStudent, uploadStudentDocumnets } from "./student.controller";
+
 
 const studentRouter = Router()
 

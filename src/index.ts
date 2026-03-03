@@ -10,9 +10,11 @@ import cookieParser from 'cookie-parser'
 import chalk from 'chalk'
 import fileUpload from 'express-fileupload';
 import corsConfig from './utils/cors'
-import userRouter from './routes/user.routes'
-import teacherRouter from './routes/teacher.routes'
-import studentRouter from './routes/student.routes'
+import userRouter from './modules/user/user.routes'
+import teacherRouter from './modules/teacher/teacher.routes'
+import studentRouter from './modules/student/student.routes'
+
+
 
 const app = express()
 

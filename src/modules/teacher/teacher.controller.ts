@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { UploadedFile } from "express-fileupload";
-import { catchError, tryError } from "../utils/errorHandler";
-import { CounterModel } from "../model/counter.model";
-import { uploadImage, uploadSingleFile } from "../utils/cloudinary";
-import TeacherModel from "../model/teacher.model";
-import UserModel from "../model/user.model";
+import { CounterModel } from "../counter/counter.model";
+import TeacherModel from "./teacher.model";
 import { nanoid } from "nanoid";
+import { catchError, tryError } from "../../utils/errorHandler";
+import UserModel from "../user/user.model";
+import { uploadImage } from "../../utils/cloudinary";
 
 
 //Create techer 

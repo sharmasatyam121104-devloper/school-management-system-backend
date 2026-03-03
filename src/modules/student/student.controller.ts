@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { catchError, tryError } from "../utils/errorHandler";
+import { catchError, tryError } from "../../utils/errorHandler";
 import bcrypt from "bcrypt";
-import UserModel from "../model/user.model";
-import StudentModel from "../model/student.model";
-import { CounterModel } from "../model/counter.model";
-import { uploadImage } from "../utils/cloudinary";
+import UserModel from "../user/user.model";
+import StudentModel from "../student/student.model";
+import { CounterModel } from "../counter/counter.model";
+import { uploadImage } from "../../utils/cloudinary";
 import { UploadedFile } from "express-fileupload";
 
 

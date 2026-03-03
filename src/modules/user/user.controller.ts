@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import UserModel from "../model/user.model";
+import UserModel from "../user/user.model";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { tryError, catchError } from "../utils/errorHandler";
+import { tryError, catchError } from "../../utils/errorHandler";
 
 export const login = async (req: Request, res: Response) => {
   try {
