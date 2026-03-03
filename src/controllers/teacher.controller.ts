@@ -254,6 +254,141 @@ export const savePersonalInfo = async (req: Request, res: Response) => {
   }
 };
 
+const getSingleFile = (file: UploadedFile | UploadedFile[]) =>
+  Array.isArray(file) ? file[0] : file;
+
+export const saveFinanceInfo = async (req: Request, res: Response) => {
+  try {
+    const {
+      email,
+      salary,
+      accountNumber,
+      ifscCode,
+      bankName,
+    } = req.body;
+
+    /* =========================
+       EMAIL VALIDATION
+    ========================== */
+    if (!email) {
+      throw tryError("Email is required", 400);
+    }
+
+    const user = await UserModel.findOne({ email });
+
+    if (!user) {
+      throw tryError("User not found", 404);
+    }
+
+    /* =========================
+      FIND TEACHER
+    ========================== */
+    const teacher = await TeacherModel.findOne({
+      "account.user": user._id,
+    });
+
+    if (!teacher) {
+      throw tryError("Teacher not found", 404);
+    }
+
+    /* =========================
+      BASIC VALIDATION
+    ========================== */
+    if (!salary) throw tryError("Salary is required", 400);
+    if (!accountNumber) throw tryError("Account number required", 400);
+    if (!ifscCode) throw tryError("IFSC code required", 400);
+    if (!bankName) throw tryError("Bank name required", 400);
+
+    /* =========================
+       FILE VALIDATION
+    ========================== */
+    if (!req.files) {
+      throw tryError("Documents are required", 400);
+    }
+
+    const files = req.files as {
+      aadhaarCard?: UploadedFile | UploadedFile[];
+      panCard?: UploadedFile | UploadedFile[];
+      certificates?: UploadedFile | UploadedFile[];
+      photo?: UploadedFile | UploadedFile[];
+    };
+
+    if (!files.aadhaarCard || !files.panCard || !files.photo) {
+      throw tryError("Aadhaar, PAN and Photo are required", 400);
+    }
+
+    /* =========================
+       UPLOAD TO CLOUDINARY
+    ========================== */
+
+    const aadhaarUrl = await uploadImage(
+      getSingleFile(files.aadhaarCard),
+      "teacher_finance"
+    );
+
+    const panUrl = await uploadImage(
+      getSingleFile(files.panCard),
+      "teacher_finance"
+    );
+
+    const photoUrl = await uploadImage(
+      getSingleFile(files.photo),
+      "teacher_finance"
+    );
+
+    let certificateUrls: string[] = [];
+
+    if (files.certificates) {
+      const certArray = Array.isArray(files.certificates)
+        ? files.certificates
+        : [files.certificates];
+
+      for (const cert of certArray) {
+        const url = await uploadImage(cert, "teacher_finance");
+        certificateUrls.push(url);
+      }
+    }
+
+    /* =========================
+      UPDATE TEACHER
+    ========================== */
+
+    const updatedTeacher = await TeacherModel.findOneAndUpdate(
+      { "account.user": user._id },
+
+      {
+        finance: {
+          salary: Number(salary),
+          bankDetails: {
+            accountNumber,
+            ifscCode,
+            bankName,
+          },
+          documents: {
+            aadhaarCard: aadhaarUrl,
+            panCard: panUrl,
+            certificates: certificateUrls,
+            photo: photoUrl,
+          },
+        },
+
+        "registrationProgress.currentStep": "COMPLETED",
+      },
+
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Finance information saved successfully",
+      data: updatedTeacher,
+    });
+
+  } catch (error) {
+    return catchError(error, res);
+  }
+};
+
 
 export const fetchTeacher = async (req: Request, res: Response) => {
   try {
