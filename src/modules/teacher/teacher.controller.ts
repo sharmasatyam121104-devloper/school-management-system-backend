@@ -1,9 +1,6 @@
 import { Request, Response } from "express";
-import bcrypt from "bcrypt";
 import { UploadedFile } from "express-fileupload";
-import { CounterModel } from "../counter/counter.model";
 import TeacherModel from "./teacher.model";
-import { nanoid } from "nanoid";
 import { catchError, tryError } from "../../utils/errorHandler";
 import UserModel from "../user/user.model";
 import { uploadImage } from "../../utils/cloudinary";
@@ -115,7 +112,7 @@ export const saveProfessionalInfo = async (req: Request, res: Response) => {
       {
         account: {
           user: user._id,
-          teacherId: `T-${nanoid(5)}`,
+          teacherId: `T-${Math.floor(100000 + Math.random() * 900000)}`,
           loginEnabled: true,
         },
 
@@ -140,6 +137,7 @@ export const saveProfessionalInfo = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
+    console.log(error);
     return catchError(error, res);
   }
 };
@@ -393,8 +391,8 @@ export const saveFinanceInfo = async (req: Request, res: Response) => {
 export const fetchTeacher = async (req: Request, res: Response) => {
   try {
     const teacher = await TeacherModel.find()
-      .select("teacherId subjectsCanTeach experienceYears highestQualification status department")
-      .populate("user", "name email mobile");
+      .select("account.teacherId subjectsCanTeach experienceYears highestQualification status department")
+      .populate("account.user", "name email mobile");
 
     if (teacher.length === 0) {
       throw tryError("Teacher data not found.", 404);
@@ -420,8 +418,8 @@ export const getTeacherById = async (req: Request, res: Response): Promise<Respo
       throw tryError("Teacher ID is required", 400);
     }
 
-    const teacher = await TeacherModel.findOne({user: id})
-    .populate("user", "name email mobile");
+    const teacher = await TeacherModel.findOne({_id: id})
+    .populate("account.user", "name email mobile");
 
     if (!teacher) {
       throw tryError("Teacher not found", 404);
@@ -466,3 +464,142 @@ export const checkStatusOfRegistration = async (req: Request, res: Response) => 
     return catchError(error, res)
   }
 }
+
+//Edit teacher data
+
+export const editProfessionalDetails = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params; 
+    const updateData = req.body; 
+    console.log("id", id);
+    console.log(updateData);
+
+    // Check id valid hai ya nahi
+    if (!id) {
+      throw tryError("Teacher ID is required",400);
+    }
+
+    // Check teacher exist karta hai ya nahi
+    const teacher = await TeacherModel.findById(id);
+
+    if (!teacher) {
+      throw tryError("Teacher not found", 404)
+    }
+
+    //Sirf professional ke fields update karo (dynamic way)
+    await TeacherModel.findByIdAndUpdate(
+      id,
+      {
+        $set: Object.fromEntries(
+          Object.entries(req.body).map(([key, value]) => [
+            `professional.${key}`,
+            value,
+          ])
+        ),
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      message: "Professional details updated successfully"
+    });
+
+  } 
+  catch (error) {
+    console.log("f-error",error);
+    return catchError(error, res)
+  }
+}
+
+export const editPersonalDetails = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ message: "Teacher ID is required" });
+    }
+
+    // Check teacher exist
+    const teacher = await TeacherModel.findById(id);
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    // Update personal object
+      await TeacherModel.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          "personal.primaryContact": req.body.primaryContact,
+          "personal.emergencyContact": req.body.emergencyContact,
+          "personal.address.street": req.body.address?.street,
+          "personal.address.city": req.body.address?.city,
+          "personal.address.state": req.body.address?.state,
+          "personal.address.pincode": req.body.address?.pincode,
+        },
+      },
+      { new: true }
+    );
+
+    if (req.body.primaryContact && teacher.account?.user) {
+      await UserModel.findByIdAndUpdate(
+      teacher.account.user,
+      { $set: { mobile: req.body.primaryContact } }
+      );
+    }
+
+    return res.status(200).json({
+      message: "Personal details updated successfully",
+    });
+  } 
+  catch (error) {
+    return catchError(error, res)
+  }
+}
+
+export const editFinanceDetails = async (req: Request, res: Response) => {
+  try {
+    const { salary } = req.body;
+    const files = req.files as { photo?: any };
+
+    const updateData: any = {};
+
+    //Salary update agar aayi
+    if (salary) {
+      updateData["finance.salary"] = salary;
+    }
+
+    //Photo update agar aayi
+    if (files?.photo) {
+      const photoFile = files.photo;
+
+      const imageUrl = await uploadImage(photoFile, "teacher_documents");
+
+      updateData["finance.documents.photo"] = imageUrl;
+    }
+
+    // Agar kuch bhi nahi aaya
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Nothing to update",
+      });
+    }
+
+     await TeacherModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Updated successfully"
+    });
+  } 
+  catch (error) {
+    return catchError(error, res)
+  }
+}
+
+
